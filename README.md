@@ -24,6 +24,7 @@ This project implements an **automatic hand sanitizer dispenser** using **Arduin
 7. **Power Supply for Pump (5V or 12V, based on pump specifications)**
 
 ---
+![5339044249494217812](https://github.com/user-attachments/assets/8f780171-4a68-467f-a705-bbf355704357)
 
 ## Circuit Connections
 
@@ -59,7 +60,6 @@ This project implements an **automatic hand sanitizer dispenser** using **Arduin
 | SDA        | A4           |
 | SCL        | A5           |
 
-**Important:** If the power supply for the pump differs from Arduino's, ensure a common ground connection.
 
 ---
 
@@ -170,6 +170,6 @@ void loop() {
 
 
 ### Code source
-the code has bben modified
+the code has been modified
 https://simplecircuitslol.blogspot.com/2024/02/arduino-code-temperature-sensor.html
 
