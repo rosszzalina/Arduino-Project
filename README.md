@@ -1,138 +1,175 @@
-# Temperature and Humidity Sensor using Arduino UNO
+# Automatic Hand Sanitizer Dispenser
 
-This project demonstrates how to use a DHT11 temperature and humidity sensor with an Arduino UNO and display the readings on an I2C LCD. The project reads temperature and humidity values from the DHT11 sensor and displays them on a 16x2 LCD using the LiquidCrystal_I2C library.
+This project implements an **automatic hand sanitizer dispenser** using **Arduino Nano V3**, **ultrasonic sensor**, **relay module**, **pump**, and an **LCD display**. The dispenser detects a hand within a specified range, activates the pump to dispense sanitizer, and displays messages on the LCD to guide the user and provide feedback.
 
 ---
 
 ## Features
-- Measures and displays real-time temperature in Celsius (°C).
-- Measures and displays real-time humidity in percentage (%).
-- Uses a 16x2 I2C LCD for clear and simple data visualization.
-- Provides error handling for sensor failures.
+
+- **Automatic dispensing**: Detects a hand using an ultrasonic sensor and dispenses sanitizer through a pump.
+- **LCD feedback**: Displays messages such as "Sanitizer Ready", "Dispensing...", and "Have a great day!" to enhance user interaction.
+- **Customizable detection range**: Adjust the detection distance as needed.
+- **Compact and modular design**: Easy to assemble and modify.
 
 ---
 
-## Components
-- **Arduino UNO**
-- **DHT11 Temperature and Humidity Sensor**
-- **16x2 LCD with I2C interface**
-- **Connecting wires**
-- **Breadboard (optional)**
+## Components Required
+
+1. **Arduino Nano V3**
+2. **Ultrasonic Sensor (HC-SR04)**
+3. **1-Channel Relay Module**
+4. **Pump (suitable for sanitizer)**
+5. **16x2 LCD Display with I2C Adapter**
+6. **Breadboard and Jumper Wires**
+7. **Power Supply for Pump (5V or 12V, based on pump specifications)**
 
 ---
 
-## Wiring Diagram
-| Component       | Arduino Pin |
-|------------------|-------------|
-| DHT11 DATA pin   | A3          |
-| DHT11 VCC        | 5V          |
-| DHT11 GND        | GND         |
-| I2C LCD SDA      | A4          |
-| I2C LCD SCL      | A5          |
-| I2C LCD VCC      | 5V          |
-| I2C LCD GND      | GND         |
+## Circuit Connections
 
----
+### **1. Ultrasonic Sensor (HC-SR04)**
 
-## Prerequisites
-1. **Install Libraries**:
-   - `DHT`: This library is used to interface with the DHT11 sensor.
-   - `LiquidCrystal_I2C`: Used for interfacing with the 16x2 I2C LCD.
+| Sensor Pin | Arduino Pin  |
+|------------|--------------|
+| VCC        | 5V           |
+| GND        | GND          |
+| Trig       | D9           |
+| Echo       | D8           |
 
+### **2. Relay Module**
+
+| Relay Pin  | Arduino Pin  |
+|------------|--------------|
+| VCC        | 5V           |
+| GND        | GND          |
+| IN         | D7           |
+
+### **3. Pump Connection**
+
+- **COM (Common)**: Connect to one terminal of the pump.
+- **NO (Normally Open)**: Connect to the positive terminal of the power supply.
+- **GND**: Connect to the negative terminal of the pump's power supply.
+
+### **4. LCD Display with I2C**
+
+| LCD Pin    | Arduino Pin  |
+|------------|--------------|
+| VCC        | 5V           |
+| GND        | GND          |
+| SDA        | A4           |
+| SCL        | A5           |
+
+**Important:** If the power supply for the pump differs from Arduino's, ensure a common ground connection.
 
 ---
 
 ## Code
-The following code initializes the DHT11 sensor and I2C LCD, reads temperature and humidity values, and displays them on the LCD.
 
 ```cpp
-#include <DHT.h>
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
-// I2C LCD Configuration
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Address 0x27, 16x2 LCD
+// LCD Configuration
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Replace 0x27 with your I2C address if different
 
-// DHT Sensor Configuration
-#define DHTPIN A3      // Pin connected to the DATA pin of DHT11
-#define DHTTYPE DHT11  // Specify DHT type as DHT11
-DHT dht(DHTPIN, DHTTYPE);
-
-// Variables to store temperature and humidity
-float h; // Stores humidity value
-float t; // Stores temperature value
+// Pin Definitions
+#define TRIG_PIN 9    // Trigger pin for Ultrasonic Sensor
+#define ECHO_PIN 8    // Echo pin for Ultrasonic Sensor
+#define RELAY_PIN 7   // Relay control pin
 
 void setup() {
-    // Initialize Serial Monitor
-    Serial.begin(9600);
-    Serial.println("DHT11 Temperature and Humidity Sensor");
+  Serial.begin(9600);           // Initialize Serial Monitor for debugging
+  pinMode(TRIG_PIN, OUTPUT);    // Set Trig as output
+  pinMode(ECHO_PIN, INPUT);     // Set Echo as input
+  pinMode(RELAY_PIN, OUTPUT);   // Set Relay as output
+  digitalWrite(RELAY_PIN, LOW); // Ensure relay is off initially
 
-    // Initialize DHT Sensor
-    dht.begin();
-
-    // Initialize LCD
-    lcd.init();
-    lcd.backlight();
-    lcd.setCursor(0, 0);
-    lcd.print("Initializing...");
-    delay(2000);
-    lcd.clear();
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Sanitizer Ready");
+  delay(2000);
+  lcd.clear();
 }
 
 void loop() {
-    // Read temperature and humidity from DHT11
-    h = dht.readHumidity();
-    t = dht.readTemperature();
+  long duration;
+  int distance;
 
-    // Check if readings are valid
-    if (isnan(h) || isnan(t)) {
-        Serial.println("Failed to read from DHT sensor!");
-        lcd.setCursor(0, 0);
-        lcd.print("Sensor Error");
-        delay(2000);
-        return;
-    }
+  // Send ultrasonic pulse
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
 
-    // Print readings to Serial Monitor
-    Serial.print("Humidity: ");
-    Serial.print(h);
-    Serial.print(" %, Temp: ");
-    Serial.print(t);
-    Serial.println(" °C");
+  // Measure time for echo to return
+  duration = pulseIn(ECHO_PIN, HIGH);
 
-    // Display readings on LCD
+  // Calculate distance in cm
+  distance = duration * 0.034 / 2;
+
+  // Debugging: Print distance to Serial Monitor
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  // If hand is detected within 10 cm, activate the pump
+  if (distance > 0 && distance < 10) {
+    lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Temp: ");
-    lcd.print(t);
-    lcd.print("C ");
-
+    lcd.print("Dispensing...");
+    digitalWrite(RELAY_PIN, HIGH); // Turn on the pump
+    delay(1000);                   // Pump runs for 1 second
+    digitalWrite(RELAY_PIN, LOW);  // Turn off the pump
     lcd.setCursor(0, 1);
-    lcd.print("Humidity: ");
-    lcd.print(h);
-    lcd.print("% ");
+    lcd.print("Have a great day!");
+    delay(2000);
+    lcd.clear();
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("Place Hand...");
+    lcd.setCursor(0, 1);
+    lcd.print("Sanitizer Ready");
+  }
 
-    delay(2000); // Wait 2 seconds before next reading
+  delay(200); // Small delay before the next sensor reading
 }
 ```
 
 ---
 
-## How to Use
-1. Connect the components as per the wiring diagram above.
-2. Upload the provided code to the Arduino UNO using the Arduino IDE.
-3. Open the Serial Monitor (baud rate: 9600) to view the sensor data.
-4. Observe the temperature and humidity values displayed on the 16x2 I2C LCD.
+## How It Works
+
+1. **Detection**:
+   - The ultrasonic sensor detects an object (e.g., a hand) within the defined range (10 cm by default).
+
+2. **Dispensing**:
+   - The Arduino activates the relay module to power the pump, dispensing sanitizer for 1 second.
+
+3. **LCD Feedback**:
+   - The LCD displays:
+     - "Sanitizer Ready" when idle.
+     - "Dispensing..." while the pump is running.
+     - "Have a great day!" after dispensing sanitizer.
+
+4. **Restart**:
+   - After a short delay, the system resets and waits for the next detection.
 
 ---
 
-## Notes
-- Ensure the DHT11 sensor is correctly wired to avoid sensor errors.
-- The default I2C address for the LCD is `0x27`. If your LCD uses a different address, update it in the code.
-- If the readings are invalid, check the connections and ensure the DHT11 sensor is functioning properly.
+## Installation
+
+1. Assemble the components as per the circuit connections.
+2. Upload the provided code to your Arduino Nano V3.
+3. Power the Arduino and the pump using appropriate power supplies.
+4. Place the ultrasonic sensor near the pump nozzle for accurate detection.
 
 ---
 
-## Source code
-the code has been modified
+
+### Code source
+the code has bben modified
 https://simplecircuitslol.blogspot.com/2024/02/arduino-code-temperature-sensor.html
 
